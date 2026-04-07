@@ -6,18 +6,15 @@ a simple EKS deployment to a full GitOps-driven platform.
 
 ---
 
-## Phase 1 🚧 — EKS Foundation (in progress)
-Deploying a containerized app on EKS with Terraform,
-Kubernetes manifests, and AWS Load Balancer Controller.
+## Phase 1 ✅ — EKS Foundation (complete)
+Deployed containerized Flask app on EKS with:
+- VPC with public/private subnets across 2 AZs
+- EKS cluster with managed node group (t3.medium)
+- AWS Load Balancer Controller via Helm + IRSA
+- Kubernetes Deployment, Service, Ingress
+- App running in private subnets, ALB in public subnets
 
-**What we're building:**
-- EKS cluster with managed node groups
-- VPC with public and private subnets
-- AWS Load Balancer Controller for Ingress
-- Kubernetes Deployment, Service, and Ingress
-- GitHub Actions deploying to EKS
-
-## Phase 2 📋 — Observability (planned)
+## Phase 2 🚧 — Observability (next)
 Prometheus + Grafana for metrics and dashboards.
 
 ## Phase 3 📋 — GitOps with ArgoCD (planned)
