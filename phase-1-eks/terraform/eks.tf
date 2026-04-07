@@ -26,30 +26,36 @@ resource "aws_eks_cluster" "main" {
 
 # NODE GROUP
 resource "aws_eks_node_group" "main" {
-    cluster_name = aws_eks_cluster.main.name
+    cluster_name    = aws_eks_cluster.main.name
     node_group_name = "${var.cluster_name}-node-group"
-    node_role_arn = aws_iam_role.node.arn
-    subnet_ids = [
-        aws_subnet.public_a.id,
-        aws_subnet.public_b.id
+    node_role_arn   = aws_iam_role.node.arn
+    subnet_ids      = [
+        aws_subnet.private_a.id,
+        aws_subnet.private_b.id
     ]
 
     instance_types = [var.node_instance_type]
 
     scaling_config {
         desired_size = var.node_desired_capacity
-        min_size = var.node_min_capacity
-        max_size = var.node_max_capacity
+        min_size     = var.node_min_capacity
+        max_size     = var.node_max_capacity
     }
 
     update_config {
         max_unavailable = 1
     }
 
+    timeouts {
+        create = "30m"
+        update = "30m"
+        delete = "30m"
+    }
+
     depends_on = [
         aws_iam_role_policy_attachment.node_policy,
         aws_iam_role_policy_attachment.node_ecr_policy,
-        aws_iam_role_policy_attachment.node_cni_policy
+        aws_iam_role_policy_attachment.node_cni_policy,
     ]
 
     tags = {
