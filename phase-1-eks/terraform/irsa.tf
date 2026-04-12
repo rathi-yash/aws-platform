@@ -79,3 +79,19 @@ resource "aws_iam_role_policy_attachment" "ebs_csi" {
   role       = aws_iam_role.ebs_csi.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
 }
+
+# EBS CSI Driver addon
+resource "aws_eks_addon" "ebs_csi" {
+    cluster_name = aws_eks_cluster.main.name
+    addon_name = "aws-ebs-csi-driver"
+    service_account_role_arn = aws_iam_role.ebs_csi.arn
+
+    depends_on = [
+        aws_eks_node_group.main,
+        aws_iam_role_policy_attachment.ebs_csi
+    ]
+
+    tags = {
+        Name = "${var.cluster_name}-ebs-csi"
+    }
+}
