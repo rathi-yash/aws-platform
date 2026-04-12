@@ -1,0 +1,38 @@
+# Grafana configuration
+grafana:
+  enabled: true
+  adminPassword: "admin123"
+
+  # Expose Grafana via Ingress
+  ingress:
+    enabled: true
+    ingressClassName: alb
+    annotations:
+      kubernetes.io/ingress.class: alb
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+    hosts: []
+
+# Prometheus configuration
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnly"]
+          resources:
+            requests:
+              storage: 10Gi
+
+# AlertManager configuration
+alertmanager:
+  enabled: true
+
+# Node Exporter - runs on every node
+nodeExporter:
+  enabled: true
+
+# kube-state-metrics - exposes K8s object state
+kubeStateMetrics:
+  enabled: true
