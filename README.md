@@ -100,29 +100,69 @@ Lesson: Always pass the VPC ID explicitly when installing the Load Balancer Cont
 
 ---
 
-## Phase 2 📋 — Observability (planned)
+## Phase 2 ✅ — Observability (complete)
 
-**Goal:** Add full visibility into what is happening inside the cluster, including metrics, dashboards, and alerting.
+Goal: Add full visibility into what is happening inside the cluster, including metrics, dashboards, and alerting.
 
-**What I will build:**
-- Prometheus: scrapes metrics from all pods and nodes automatically
-- Grafana: dashboards showing CPU, memory, request rates, and error rates
-- AlertManager: sends alerts when things go wrong like pod crashes or high CPU
+What I built:
+- Prometheus: scrapes metrics from all pods and nodes every 15 seconds
+- Grafana: pre-built Kubernetes dashboards showing CPU, memory, request rates, and error rates
+- AlertManager: configured and ready for custom alerts
 - kube-state-metrics: exposes Kubernetes object state as metrics
-- Node Exporter: exposes node-level metrics like disk, network, and CPU
+- Node Exporter: exposes EC2 node hardware metrics (one pod per node via DaemonSet)
+- EBS CSI Driver: enables dynamic EBS volume provisioning for Prometheus storage
+- 10Gi persistent EBS volume for Prometheus metrics with 7 day retention
 
-**Why this matters:**
-Without observability you are flying blind. You find out your app is down when users complain. With Prometheus and Grafana you see problems before users do, like rising error rates, memory leaks, or pods being killed due to memory limits.
+Architecture:
+```
+Prometheus (scrapes every 15s)
+    ↓ collects from
+Flask app pods + Node Exporter + kube-state-metrics
+    ↓ stores in
+EBS Volume (10Gi, gp2, 7 day retention)
+    ↓ visualized by
+Grafana (exposed via ALB Ingress)
+```
 
-**Installation plan:**
-- Install kube-prometheus-stack via Helm (bundles Prometheus, Grafana, and AlertManager)
-- Configure Grafana dashboards for Kubernetes cluster overview
-- Set up alerts for pod restarts, high memory, and node pressure
-- Expose Grafana via Ingress with ALB
+Key design decisions:
+- EBS CSI Driver installed as EKS managed addon: required for dynamic EBS provisioning on EKS 1.23+
+- IRSA for EBS CSI Driver: IAM role managed by Terraform, no stored credentials
+- kube-prometheus-stack Helm chart: bundles Prometheus, Grafana, and AlertManager in one install
+- DaemonSet for Node Exporter: automatically runs one pod per node, scales with the cluster
 
-**Tools:** Helm, Prometheus, Grafana, AlertManager
+Tools: Helm, Prometheus, Grafana, AlertManager, EBS CSI Driver
 
-**Problems faced in Phase 2:** coming soon
+---
+
+Problems faced in Phase 2:
+
+**Problem 1: Prometheus pod stuck in Pending**
+
+What happened: The Prometheus StatefulSet pod could not start because the PersistentVolumeClaim stayed in Pending state.
+
+How I fixed it: Traced the issue through kubectl describe pod to find an unbound PVC, then kubectl get pvc to confirm, then discovered the EBS CSI driver was missing entirely.
+
+Lesson: EKS 1.23+ requires the EBS CSI driver addon for dynamic EBS provisioning. The old in-tree driver was removed. Always install the EBS CSI driver when using persistent storage on EKS.
+
+---
+
+**Problem 2: EBS CSI driver pods in CrashLoopBackOff**
+
+What happened: After installing the EBS CSI addon the controller pods crashed because they had no IAM permissions to create EBS volumes.
+
+How I fixed it: Created an IAM role with the correct OIDC trust policy in Terraform and passed it during addon creation using --service-account-role-arn.
+
+Lesson: EKS managed addons need an IAM role with IRSA just like other AWS-dependent workloads. Always create the IAM role before or during addon creation.
+
+---
+
+**Problem 3: Wrong accessModes value in values file**
+
+What happened: Used ReadWriteOnly instead of ReadWriteOnce in the Prometheus storage config. Kubernetes rejected it as an unsupported value.
+
+How I fixed it: Corrected the typo in prometheus-values.yaml and upgraded the Helm release.
+
+Lesson: Kubernetes PVC access modes are ReadWriteOnce, ReadOnlyMany, ReadWriteMany, and ReadWriteOncePod. ReadWriteOnly does not exist.
 
 ---
 
