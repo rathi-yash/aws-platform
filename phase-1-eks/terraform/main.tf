@@ -9,6 +9,11 @@ terraform {
             source = "hashicorp/kubernetes"
             version = "~> 2.0"
         }
+
+        http = {
+            source  = "hashicorp/http"
+            version = "~> 3.0"
+        }
     }
 }
 
@@ -17,10 +22,10 @@ provider "aws" {
 }
 
 provider "kubernetes" {
-    host = module.eks.cluster_endpoint
-    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+    host = aws_eks_cluster.main.endpoint
+    cluster_ca_certificate = base64decode(aws_eks_cluster.main.certificate_authority[0].data)
     exec{
-        api_version = "client.authenticate.k8s.io/v1beta1"
+        api_version = "client.authentication.k8s.io/v1beta1"
         args = ["eks", "get-token", "--cluster-name", var.cluster_name]
         command = "aws"
     }
