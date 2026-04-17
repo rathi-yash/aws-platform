@@ -2,6 +2,25 @@
 
 A production-grade internal developer platform built incrementally on AWS. This repo documents the journey from a simple EKS deployment to a full GitOps-driven platform with observability and reusable infrastructure modules.
 
+## Current Architecture Diagram
+
+![Architecture](docs/architecture.png)
+
+The diagram above shows the full platform architecture across two availability zones.
+
+Traffic flow:
+- Internet hits the Internet Gateway at the VPC level
+- ALB spans both AZs and receives all inbound traffic on port 80
+- ALB routes directly to Flask app pods running in private subnets
+- Worker nodes in private subnets have no public IPs — only reachable via ALB
+- NAT Gateway allows outbound traffic from private subnets (pulling images from ECR etc.)
+
+What runs inside each EC2 worker node:
+- Flask Pod (namespace: default) — the application
+- Node Exporter (namespace: monitoring) — exposes hardware metrics
+- Prometheus (namespace: monitoring) — scrapes metrics from all pods
+- Grafana (namespace: monitoring) — visualizes metrics via ALB Ingress
+
 ---
 
 ## Phase 1 ✅ — EKS Foundation (complete)
