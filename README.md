@@ -185,26 +185,59 @@ Lesson: Kubernetes PVC access modes are ReadWriteOnce, ReadOnlyMany, ReadWriteMa
 
 ---
 
-## Phase 3 📋 — GitOps with ArgoCD (planned)
+## Phase 3 ✅ — GitOps with ArgoCD (complete)
 
-**Goal:** Replace manual kubectl apply with a system that automatically syncs the cluster to whatever is in the Git repo.
+Goal: Replace manual kubectl apply with a system that automatically syncs the cluster to whatever is in the Git repo.
 
-**What I will build:**
-- ArgoCD: watches the Git repo and automatically deploys any changes
-- ApplicationSet: manages multiple apps and environments from one config
-- Sync policies: automatic vs manual promotion between environments
-- Multi-environment setup: dev and prod namespaces with different configs
+What I built:
+- ArgoCD installed via Helm in its own namespace
+- ArgoCD exposed publicly via ALB Ingress
+- ArgoCD Application watching the phase-3-gitops/manifests folder in GitHub
+- Automatic sync: any Git push triggers a deployment within minutes
+- Self healing: if someone manually changes the cluster, ArgoCD reverts it automatically
+- Drift detection: cluster always matches what is in Git
 
-**Why this matters:**
-Right now to deploy I run kubectl apply manually. GitOps flips this. The cluster watches Git and pulls changes automatically. This means:
-- Every deployment is a Git commit, giving a full audit trail
-- Rollback is just a git revert, simple and safe
-- Nobody needs kubectl access to production, Git is the source of truth
-- Drift detection: if someone manually changes something in the cluster, ArgoCD reverts it
+Architecture:
+```
+Developer pushes to GitHub
+    ↓
+ArgoCD detects change in phase-3-gitops/manifests/
+    ↓
+ArgoCD syncs cluster to match Git
+    ↓
+Pods updated automatically — no kubectl apply needed
+```
 
-**Tools:** ArgoCD, Helm, Git
+Key design decisions:
+- ArgoCD in its own namespace: cleaner separation from system components and easier to manage
+- insecure mode with ALB: ArgoCD runs HTTP, ALB handles traffic. In production you would terminate SSL at the ALB with an ACM certificate
+- automated.prune: true: if a manifest is deleted from Git, the resource is deleted from the cluster
+- automated.selfHeal: true: if someone manually changes the cluster, ArgoCD reverts it within 30 seconds
+- Separate manifests folder: phase-3-gitops/manifests/ is the single source of truth for what runs in the cluster
 
-**Problems faced in Phase 3:** coming soon
+Tools: ArgoCD, Helm, GitHub
+
+---
+
+Problems faced in Phase 3:
+
+**Problem 1: ArgoCD redirecting HTTP to HTTPS**
+
+What happened: Even after setting insecure: true in the Helm values, ArgoCD kept sending 307 redirects from HTTP to HTTPS. The browser could not load the UI.
+
+How I fixed it: Had to set insecure mode in three places simultaneously: server.insecure: true, configs.params."server.insecure": true, and server.extraArgs: --insecure. All three are needed to fully disable the HTTPS redirect.
+
+Lesson: ArgoCD has multiple layers of HTTPS enforcement. When running behind an HTTP load balancer you need to disable all three otherwise the redirect persists.
+
+---
+
+**Problem 2: Helm chart hardcoding argocd.example.com as the Ingress host**
+
+What happened: The ArgoCD Helm chart was ignoring our hosts: [] setting and defaulting to argocd.example.com. The ALB was created but traffic was not routing correctly because we do not own that domain.
+
+How I fixed it: Disabled the Helm chart ingress entirely and created a separate argocd-ingress.yaml with no host specified. This gives us full control over the Ingress without fighting the chart defaults.
+
+Lesson: When a Helm chart is not respecting your values for a specific resource, it is cleaner to disable that resource in the chart and manage it yourself separately.
 
 ---
 
